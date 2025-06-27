@@ -1,0 +1,42 @@
+
+- name: Check additional disk and clone test repo 
+  hosts: mygroup
+  become: yes    
+  vars:
+    dev_path: /dev/sdb
+    mount_point: /mnt/repos
+    git_repo: https://github.com/githubtraining/hellogitworld.git
+  vars_files:
+    - ansuser_vault.yml
+  tasks:
+    - name: Additional disk check
+      stat:
+        path: "{{ dev_path }}"
+      register: disk_stat
+
+    - name: Create moint point
+      file:
+        path: "{{ mount_point }}"
+        state: directory
+      when: disk_stat.stat.exists
+
+    - name: Create filesystem EXT4
+      filesystem:
+        fstype: ext4
+        dev: "{{ dev_path }}"
+      when: disk_stat.stat.exists
+
+    - name: Disk mount  
+      mount:
+        path: "{{ mount_point }}"
+        src: "{{ dev_path }}"
+        fstype: ext4
+        state: mounted
+      when: disk_stat.stat.exists
+
+    - name: Clone git repo to /mnt/repos or /tmp
+      git:
+        repo: "{{ git_repo }}"
+        dest: "{{ (mount_point ~ '/hellogitworld') if disk_stat.stat.exists else '/tmp/hellogitworld' }}"
+        force: yes
+        update: yes
